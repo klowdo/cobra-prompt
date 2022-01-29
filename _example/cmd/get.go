@@ -1,21 +1,23 @@
 package cmd
 
 import (
-	"github.com/c-bata/go-prompt"
+	"strings"
+
 	"github.com/spf13/cobra"
-	cobraprompt "github.com/stromland/cobra-prompt"
 )
 
-var getFoodDynamicAnnotationValue = "GetFood"
+func isCmdPath(cmd *cobra.Command, path string) bool {
+	return strings.Contains(cmd.CommandPath(), path)
+}
 
-var GetFoodDynamic = func(annotationValue string) []prompt.Suggest {
-	if annotationValue != getFoodDynamicAnnotationValue {
+var GetFoodDynamic = func(cmd *cobra.Command) [][]string {
+	if !isCmdPath(cmd, "get food") {
 		return nil
 	}
 
-	return []prompt.Suggest{
-		{Text: "apple", Description: "Green apple"},
-		{Text: "tomato", Description: "Red tomato"},
+	return [][]string{
+		[]string{"apple", "Green apple"},
+		[]string{"tomato", "Red tomato"},
 	}
 }
 
@@ -31,9 +33,6 @@ var getCmd = &cobra.Command{
 var getFoodCmd = &cobra.Command{
 	Use:   "food",
 	Short: "Get some food",
-	Annotations: map[string]string{
-		cobraprompt.DynamicSuggestionsAnnotation: getFoodDynamicAnnotationValue,
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		for _, v := range args {

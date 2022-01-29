@@ -12,8 +12,8 @@ import (
 // DynamicSuggestionsAnnotation for dynamic suggestions.
 const DynamicSuggestionsAnnotation = "cobra-prompt-dynamic-suggestions"
 
-// PersistFlagValuesFlag the flag that will be avaiailable when PersistFlagValues is true
-const PersistFlagValuesFlag = "persist-flag-values"
+// persistFlagValuesFlag the flag that will be avaiailable when PersistFlagValues is true
+const persistFlagValuesFlag = "persist-flag-values"
 
 type CobraPromptOptions struct {
 	// GoPromptOptions is for customize go-prompt
@@ -41,6 +41,8 @@ type FindSuggestionsOptions struct {
 	// the value will be provided to the DynamicSuggestionsFunc function.
 	DynamicSuggestionsFunc func(annotationValue string, document *prompt.Document) []prompt.Suggest
 
+	CustomSuggestionsFunc func(cmd *cobra.Command, document *prompt.Document) []prompt.Suggest
+
 	// ShowHiddenCommands makes hidden commands available
 	ShowHiddenCommands bool
 
@@ -51,9 +53,9 @@ type FindSuggestionsOptions struct {
 	ShowHelpCommandAndFlags bool
 }
 
-// CobraPrompt given a Cobra command it will make every flag and sub commands available as suggestions.
+// cobraPrompt given a Cobra command it will make every flag and sub commands available as suggestions.
 // Command.Short will be used as description for the suggestion.
-type CobraPrompt struct {
+type cobraPrompt struct {
 	// RootCmd is the start point, all its sub commands and flags will be available as suggestions
 	rootCmd *cobra.Command
 
@@ -62,7 +64,7 @@ type CobraPrompt struct {
 	prompt *prompt.Prompt
 }
 
-func New(rootCmd cobra.Command, options CobraPromptOptions) *CobraPrompt {
+func New(rootCmd cobra.Command, options CobraPromptOptions) *cobraPrompt {
 	prompt := prompt.New(
 		func(in string) {
 			promptArgs := strings.Fields(in)
@@ -82,7 +84,7 @@ func New(rootCmd cobra.Command, options CobraPromptOptions) *CobraPrompt {
 		options.GoPromptOptions...,
 	)
 
-	co := &CobraPrompt{
+	co := &cobraPrompt{
 		rootCmd: &rootCmd,
 		options: &options,
 		prompt:  prompt,
@@ -95,11 +97,11 @@ func New(rootCmd cobra.Command, options CobraPromptOptions) *CobraPrompt {
 
 // Run will automatically generate suggestions for all cobra commands and flags defined by RootCmd
 // and execute the selected commands. Run will also reset all given flags by default, see PersistFlagValues
-func (co CobraPrompt) Run() {
+func (co cobraPrompt) Run() {
 	co.prompt.Run()
 }
 
-func (co CobraPrompt) prepare() {
+func (co cobraPrompt) prepare() {
 	if co.options.FindSuggestionsOptions.ShowHelpCommandAndFlags {
 		// TODO: Find help commands
 		co.rootCmd.InitDefaultHelpCmd()
@@ -120,7 +122,7 @@ func (co CobraPrompt) prepare() {
 	}
 
 	if co.options.PersistFlagValues {
-		co.rootCmd.PersistentFlags().BoolP(PersistFlagValuesFlag, "",
+		co.rootCmd.PersistentFlags().BoolP(persistFlagValuesFlag, "",
 			false, "Persist last given value for flags")
 	}
 }
@@ -134,7 +136,7 @@ func FindSuggestions(rootCmd *cobra.Command, d *prompt.Document, options FindSug
 	}
 
 	var suggestions []prompt.Suggest
-	persistFlagValues, _ := cmd.Flags().GetBool(PersistFlagValuesFlag)
+	persistFlagValues, _ := cmd.Flags().GetBool(persistFlagValuesFlag)
 	addFlags := func(flag *pflag.Flag) {
 		if flag.Changed && !persistFlagValues {
 			flag.Value.Set(flag.DefValue)
@@ -167,5 +169,9 @@ func FindSuggestions(rootCmd *cobra.Command, d *prompt.Document, options FindSug
 	if options.DynamicSuggestionsFunc != nil && annotation != "" {
 		suggestions = append(suggestions, options.DynamicSuggestionsFunc(annotation, d)...)
 	}
+	if options.CustomSuggestionsFunc != nil {
+		suggestions = append(suggestions, options.CustomSuggestionsFunc(cmd, d)...)
+	}
+
 	return prompt.FilterHasPrefix(suggestions, d.GetWordBeforeCursor(), true)
 }

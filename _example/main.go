@@ -5,9 +5,26 @@ import (
 	"strings"
 
 	"github.com/c-bata/go-prompt"
+	"github.com/spf13/cobra"
 	cobraprompt "github.com/stromland/cobra-prompt"
 	"github.com/stromland/cobra-prompt/_example/cmd"
 )
+
+func toSuggest(list [][]string) []prompt.Suggest {
+	var suggestions []prompt.Suggest
+	for _, s := range list {
+		if len(s) == 0 {
+			continue
+		}
+		if len(s) == 1 {
+			suggestions = append(suggestions, prompt.Suggest{Text: s[0]})
+		}
+		if len(s) == 2 {
+			suggestions = append(suggestions, prompt.Suggest{Text: s[0], Description: s[1]})
+		}
+	}
+	return suggestions
+}
 
 var advancedOption = cobraprompt.CobraPromptOptions{
 	PersistFlagValues:        true,
@@ -20,11 +37,10 @@ var advancedOption = cobraprompt.CobraPromptOptions{
 	},
 	FindSuggestionsOptions: cobraprompt.FindSuggestionsOptions{
 		ShowHelpCommandAndFlags: true,
-		DynamicSuggestionsFunc: func(annotationValue string, document *prompt.Document) []prompt.Suggest {
-			if suggestions := cmd.GetFoodDynamic(annotationValue); suggestions != nil {
-				return suggestions
+		CustomSuggestionsFunc: func(c *cobra.Command, document *prompt.Document) []prompt.Suggest {
+			if suggestions := cmd.GetFoodDynamic(c); suggestions != nil {
+				return toSuggest(suggestions)
 			}
-
 			return []prompt.Suggest{}
 		},
 	},
